@@ -1,0 +1,12 @@
+{
+  "name": "MSP Field Technician",
+  "short_name": "MSP Field",
+  "start_url": "/tech/",
+  "display": "standalone",
+  "background_color": "#1F4E79",
+  "theme_color": "#1F4E79",
+  "icons": [
+    {"src": "/static/tracker/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/tracker/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

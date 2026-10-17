@@ -1,0 +1,94 @@
+{% extends "tracker/base.html" %}
+
+{% block title %}Sites — MSP Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-tower"></i> All Sites</h2>
+  <div>
+    <span class="badge bg-primary">{{ sites|length }} shown</span>
+  </div>
+</div>
+
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-3">
+    <input type="text" name="search" class="form-control"
+           placeholder="Search site ID or name..."
+           value="{{ search }}">
+  </div>
+  <div class="col-md-3">
+    <select name="province" class="form-select">
+      <option value="">All provinces</option>
+      {% for p in provinces %}
+        <option value="{{ p }}" {% if p == province %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="msp" class="form-select">
+      <option value="">All MSPs</option>
+      {% for m in msps %}
+        <option value="{{ m.name }}" {% if m.name == msp_name %}selected{% endif %}>
+          {{ m.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <button class="btn btn-primary w-100">
+      <i class="bi bi-search"></i> Filter
+    </button>
+  </div>
+  <div class="col-md-1">
+    <a href="{% url 'site_list' %}" class="btn btn-outline-secondary w-100">Clear</a>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Site ID</th>
+            <th>Name</th>
+            <th>Province</th>
+            <th>Town</th>
+            <th>Type</th>
+            <th>MSP</th>
+            <th>Status</th>
+            <th>Last PPM</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for s in sites %}
+          <tr>
+            <td>
+              <a href="{% url 'site_detail' s.site_id %}">
+                <b>{{ s.site_id }}</b>
+              </a>
+            </td>
+            <td>{{ s.site_name }}</td>
+            <td>{{ s.province }}</td>
+            <td>{{ s.town }}</td>
+            <td>{{ s.get_site_type_display }}</td>
+            <td>{{ s.msp.name|default:"—" }}</td>
+            <td>
+              <span class="status-dot status-{{ s.status_color }}"></span>
+              {{ s.status_color|upper }}
+            </td>
+            <td>{{ s.last_ppm_date|default:"Never" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              No sites found
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

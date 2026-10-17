@@ -1,0 +1,115 @@
+{% extends "tracker/base.html" %}
+
+{% block title %}Overdue Report — MSP Tracker{% endblock %}
+<a href="{% url 'download_overdue_excel' %}?province={{ province }}&msp={{ msp }}" class="btn btn-success mb-3">
+  ⬇ Download Excel
+</a>
+
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-exclamation-triangle"></i> Overdue Report</h2>
+  <p class="text-muted mb-0">
+    Complete list of sites requiring immediate maintenance attention.
+  </p>
+</div>
+
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-3">
+    <select name="province" class="form-select">
+      <option value="">All provinces</option>
+      {% for p in provinces %}
+        <option value="{{ p }}" {% if p == province %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="msp" class="form-select">
+      <option value="">All MSPs</option>
+      {% for m in msps %}
+        <option value="{{ m.name }}" {% if m.name == msp_name %}selected{% endif %}>
+          {{ m.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="type" class="form-select">
+      <option value="all" {% if flag_type == 'all' %}selected{% endif %}>
+        All overdue
+      </option>
+      <option value="dg" {% if flag_type == 'dg' %}selected{% endif %}>
+        DG service only
+      </option>
+      <option value="ppm" {% if flag_type == 'ppm' %}selected{% endif %}>
+        PPM only
+      </option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <button class="btn btn-primary w-100">
+      <i class="bi bi-funnel"></i> Apply Filters
+    </button>
+  </div>
+</form>
+
+<div class="alert alert-info">
+  <b>{{ overdue_sites|length }}</b> sites flagged as overdue based on contractual rules
+  (DG: 3-month or 25,000-hour; Non-DG: 2-month).
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Site ID</th>
+            <th>Name</th>
+            <th>Province</th>
+            <th>Type</th>
+            <th>Last PPM</th>
+            <th>Last DG</th>
+            <th>Run Hours</th>
+            <th>Reasons</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for s in overdue_sites %}
+          <tr>
+            <td>
+              <a href="{% url 'site_detail' s.site_id %}">
+                <b>{{ s.site_id }}</b>
+              </a>
+            </td>
+            <td>{{ s.site_name }}</td>
+            <td>{{ s.province }}</td>
+            <td>
+              {% if s.has_dg %}
+                <span class="badge bg-primary">DG</span>
+              {% else %}
+                <span class="badge bg-secondary">Non-DG</span>
+              {% endif %}
+            </td>
+            <td>{{ s.last_ppm_date|default:"Never" }}</td>
+            <td>{{ s.last_dg_service_date|default:"—" }}</td>
+            <td>{{ s.last_dg_run_hours|default:"—" }}</td>
+            <td>
+              <small class="text-danger">
+                {{ s.overdue_reasons|join:", " }}
+              </small>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
+              No overdue sites with current filters 🎉
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

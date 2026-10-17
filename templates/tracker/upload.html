@@ -1,0 +1,93 @@
+{% extends "tracker/base.html" %}
+
+{% block title %}Upload Report — MSP Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-upload"></i> Upload Excel Report</h2>
+  <p class="text-muted mb-0">
+    Import maintenance data from your existing spreadsheets.
+  </p>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header bg-white">
+        <h5 class="mb-0">New Upload</h5>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="bi bi-info-circle"></i>
+          Excel import handler coming next. For now, please use the
+          <a href="/admin/">Admin panel</a> or
+          <a href="/admin/tracker/site/">direct data entry</a>.
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Report Type</label>
+            <select name="report_type" class="form-select">
+              <option value="ppm">Monthly PPM Report</option>
+              <option value="dg">DG Service Report</option>
+              <option value="refuel">Refuelling Plan</option>
+              <option value="site_master">Site Master</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Excel File (.xlsx)</label>
+            <input type="file" name="file" class="form-control"
+                   accept=".xlsx,.xls" disabled>
+            <small class="text-muted">Coming soon</small>
+          </div>
+          <button type="submit" class="btn btn-primary" disabled>
+            Upload & Import
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-white">
+        <h5 class="mb-0">Recent Uploads</h5>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>File</th>
+              <th>Date</th>
+              <th>Rows</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for log in logs %}
+            <tr>
+              <td>{{ log.filename }}</td>
+              <td>{{ log.uploaded_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ log.rows_imported }}</td>
+              <td>
+                {% if log.status == 'SUCCESS' %}
+                  <span class="badge bg-success">{{ log.status }}</span>
+                {% else %}
+                  <span class="badge bg-danger">{{ log.status }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-muted text-center py-3">
+                No uploads yet
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

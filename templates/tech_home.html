@@ -1,0 +1,148 @@
+{% load static %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <link rel="manifest" href="{% static 'tracker/manifest.json' %}">
+  <meta name="theme-color" content="#1F4E79">
+  <title>Field Technician</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f0f2f5; }
+    header { background: #1F4E79; color: #fff; padding: 16px; }
+    .site-card { background: #fff; margin: 10px; padding: 14px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .overdue { border-left: 5px solid #dc3545; }
+    .due { border-left: 5px solid #ffc107; }
+    button { background: #1F4E79; color: #fff; border: 0; padding: 12px 20px; border-radius: 6px; font-size: 16px; width: 100%; }
+    input, select, textarea { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; }
+    .offline-badge { background: #dc3545; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <h2 style="margin:0">Field Technician</h2>
+  <div>{{ user.get_full_name|default:user.username }} <span id="net-status"></span></div>
+</header>
+
+<div id="app">
+  {% for s in sites %}
+    <div class="site-card {% if s.status_color == 'red' %}overdue{% else %}due{% endif %}">
+      <strong>{{ s.site_id }}</strong> — {{ s.site_name }}<br>
+      <small>{{ s.province }} — {{ s.get_site_type_display }}</small><br>
+      <small style="color:#dc3545">{{ s.overdue_reasons|join:", " }}</small>
+      <button style="margin-top:10px" onclick="openForm('{{ s.site_id }}', '{{ s.site_name|escapejs }}')">Log Visit</button>
+    </div>
+  {% empty %}
+    <div class="site-card">No overdue sites. 🎉</div>
+  {% endfor %}
+</div>
+
+<div id="form-modal" style="display:none; position:fixed; inset:0; background:#fff; padding:16px; overflow-y:auto;">
+  <h3 id="form-title">Log Visit</h3>
+  <form id="visit-form">
+    <input type="hidden" id="site_id">
+    <label>Type</label>
+    <select id="maintenance_type">
+      <option value="PPM">Preventive Maintenance</option>
+      <option value="DG_SERVICE">DG Service</option>
+      <option value="SOLAR_CLEANING">Solar Cleaning</option>
+      <option value="AIRCON_SERVICE">Aircon Service</option>
+    </select>
+
+    <label>Date</label>
+    <input type="date" id="service_date" required>
+
+    <label>DG Run Hours (if applicable)</label>
+    <input type="number" step="0.01" id="dg_run_hours">
+
+    <label>Load Current (A)</label>
+    <input type="number" step="0.01" id="load_current">
+
+    <label>Earth Resistance (Ω)</label>
+    <input type="number" step="0.01" id="earth_resistance">
+
+    <label>Comment</label>
+    <textarea id="comment" rows="3"></textarea>
+
+    <label>Photo (optional)</label>
+    <input type="file" id="photo" accept="image/*" capture="environment">
+
+    <button type="submit" style="margin-top:10px">Save Visit</button>
+    <button type="button" style="background:#6c757d; margin-top:6px" onclick="closeForm()">Cancel</button>
+  </form>
+</div>
+
+<script>
+  // PWA registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/tracker/sw.js');
+  }
+
+  // Network badge
+  const netStatus = document.getElementById('net-status');
+  function updateNet() {
+    netStatus.innerHTML = navigator.onLine ? '' : '<span class="offline-badge">OFFLINE</span>';
+  }
+  window.addEventListener('online', updateNet);
+  window.addEventListener('offline', updateNet);
+  updateNet();
+
+  // Set today's date by default
+  document.getElementById('service_date').valueAsDate = new Date();
+
+  function openForm(siteId, siteName) {
+    document.getElementById('site_id').value = siteId;
+    document.getElementById('form-title').textContent = 'Log Visit — ' + siteName;
+    document.getElementById('form-modal').style.display = 'block';
+  }
+  function closeForm() {
+    document.getElementById('form-modal').style.display = 'none';
+    document.getElementById('visit-form').reset();
+  }
+
+  document.getElementById('visit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      site_id: document.getElementById('site_id').value,
+      maintenance_type: document.getElementById('maintenance_type').value,
+      service_date: document.getElementById('service_date').value,
+      dg_run_hours: document.getElementById('dg_run_hours').value || null,
+      load_current: document.getElementById('load_current').value || null,
+      earth_resistance: document.getElementById('earth_resistance').value || null,
+      comment: document.getElementById('comment').value,
+    };
+
+    if (navigator.onLine) {
+      try {
+        const resp = await fetch('/api/tech/log-visit/', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+          body: JSON.stringify(payload)
+        });
+        if (resp.ok) { alert('Saved ✓'); closeForm(); return; }
+      } catch (err) { console.warn('Online save failed, queuing', err); }
+    }
+
+    // Queue offline
+    const db = await openDB();
+    const tx = db.transaction('visits', 'readwrite');
+    tx.objectStore('visits').add({...payload, synced: false});
+    alert('Saved offline — will sync when back online');
+    closeForm();
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg.sync) reg.sync.register('sync-visits');
+    }
+  });
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('msp-tracker', 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore('visits', {keyPath: 'id', autoIncrement: true});
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = reject;
+    });
+  }
+</script>
+</body>
+</html>

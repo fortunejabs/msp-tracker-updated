@@ -1,0 +1,197 @@
+{% extends "tracker/base.html" %}
+
+{% block title %}Dashboard — MSP Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-speedometer2"></i> Operations Dashboard</h2>
+  <p class="text-muted mb-0">{{ today|date:"l, d F Y" }}</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card kpi-card h-100">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Total Active Sites</h6>
+        <div class="kpi-number">{{ total_sites }}</div>
+        <small class="text-muted">
+          {{ total_dg }} DG · {{ total_non_dg }} non-DG
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card kpi-card h-100" style="border-left-color: var(--danger);">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">DG Service Overdue</h6>
+        <div class="kpi-number text-danger">{{ overdue_dg_count }}</div>
+        <small class="text-muted">>3 months OR >25,000 hrs</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card kpi-card h-100" style="border-left-color: var(--warning);">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">PPM Overdue</h6>
+        <div class="kpi-number" style="color: var(--warning);">
+          {{ overdue_ppm_count }}
+        </div>
+        <small class="text-muted">
+          Non-DG overdue: {{ overdue_non_dg_count }}
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card kpi-card h-100" style="border-left-color: var(--brand-mid);">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Due in 14 Days</h6>
+        <div class="kpi-number" style="color: var(--brand-mid);">
+          {{ due_soon_count }}
+        </div>
+        <small class="text-muted">Plan ahead</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overdue DG Sites -->
+<div class="card mb-4">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">
+      <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+      DG Sites Overdue for Service
+    </h5>
+    <a href="{% url 'overdue_report' %}?type=dg" class="btn btn-sm btn-outline-danger">
+      View all →
+    </a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Site ID</th>
+            <th>Name</th>
+            <th>Province</th>
+            <th>Last DG Service</th>
+            <th>Run Hours</th>
+            <th>Reasons</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for s in overdue_dg %}
+          <tr>
+            <td><a href="{% url 'site_detail' s.site_id %}">{{ s.site_id }}</a></td>
+            <td>{{ s.site_name }}</td>
+            <td>{{ s.province }}</td>
+            <td>{{ s.last_dg_service_date|default:"Never" }}</td>
+            <td>{{ s.last_dg_run_hours|default:"—" }}</td>
+            <td>
+              <small class="text-danger">
+                {{ s.overdue_reasons|join:", " }}
+              </small>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-check-circle text-success"></i>
+              No overdue DG sites 🎉
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Overdue PPM Sites -->
+<div class="card mb-4">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">
+      <i class="bi bi-exclamation-triangle-fill" style="color: var(--warning);"></i>
+      Sites Overdue for PPM
+    </h5>
+    <a href="{% url 'overdue_report' %}?type=ppm" class="btn btn-sm btn-outline-warning">
+      View all →
+    </a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Site ID</th>
+            <th>Name</th>
+            <th>Province</th>
+            <th>Type</th>
+            <th>Last PPM</th>
+            <th>Due Date</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for s in overdue_ppm %}
+          <tr>
+            <td><a href="{% url 'site_detail' s.site_id %}">{{ s.site_id }}</a></td>
+            <td>{{ s.site_name }}</td>
+            <td>{{ s.province }}</td>
+            <td>
+              {% if s.has_dg %}
+                <span class="badge bg-primary">DG</span>
+              {% else %}
+                <span class="badge bg-secondary">Non-DG</span>
+              {% endif %}
+            </td>
+            <td>{{ s.last_ppm_date|default:"Never" }}</td>
+            <td>{{ s.ppm_due_date|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-check-circle text-success"></i>
+              No overdue PPM sites 🎉
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- By Province -->
+{% if province_stats %}
+<div class="card">
+  <div class="card-header bg-white">
+    <h5 class="mb-0"><i class="bi bi-geo-alt"></i> By Province</h5>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for p in province_stats %}
+        <div class="col-md-3">
+          <div class="border rounded p-3">
+            <div class="fw-bold">{{ p.province }}</div>
+            <div class="text-muted small">
+              {{ p.total }} sites · {{ p.overdue }} overdue
+            </div>
+            <div class="progress mt-2" style="height: 6px;">
+              {% if p.total %}
+                <div class="progress-bar bg-danger"
+                     style="width: {% widthratio p.overdue p.total 100 %}%">
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

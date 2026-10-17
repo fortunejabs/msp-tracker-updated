@@ -1,0 +1,54 @@
+{% extends "tracker/base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2>Site Map ({{ total }} sites)</h2>
+  <div>
+    <span class="badge bg-success">OK</span>
+    <span class="badge bg-warning text-dark">Due Soon</span>
+    <span class="badge bg-danger">Overdue</span>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div id="map" style="height: 75vh; border-radius: 8px;"></div>
+
+<script>
+  const geojson = {{ geojson|safe }};
+  const map = L.map('map').setView([-14.5, 27.5], 6);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  const colorMap = { green: '#28a745', yellow: '#ffc107', red: '#dc3545' };
+
+  L.geoJSON(geojson, {
+    pointToLayer: (feature, latlng) => {
+      const c = colorMap[feature.properties.color] || '#6c757d';
+      return L.circleMarker(latlng, {
+        radius: 7,
+        fillColor: c,
+        color: '#fff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.9
+      });
+    },
+    onEachFeature: (feature, layer) => {
+      const p = feature.properties;
+      const popup = `
+        <strong>${p.site_id}</strong><br>
+        ${p.site_name}<br>
+        <em>${p.province} — ${p.site_type}</em><br>
+        <small>Last PPM: ${p.last_ppm}<br>
+        Last DG: ${p.last_dg}<br>
+        <span style="color:#dc3545">${p.reasons}</span></small><br>
+        <a href="${p.url}" target="_blank">Open details →</a>
+      `;
+      layer.bindPopup(popup);
+    }
+  }).addTo(map);
+</script>
+{% endblock %}
